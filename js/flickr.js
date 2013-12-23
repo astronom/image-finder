@@ -307,9 +307,14 @@ Flickr.prototype = {
         return this._call( params, function(data) {
 
             var gallery = [],
+					photos = [];
 				// Отфильтруем изображения по минимальному размеру
-                photos = this._filterByDim(data.photos ? data.photos.photo : data.photoset.photo),
-                len = photos.length,
+			if(data.photo)
+                photos = this._filterByDim(data.photo);
+			else
+				photos = this._filterByDim(data.photos ? data.photos.photo : data.photoset.photo);
+
+            var len = photos.length,
                 photo,
                 i;
 
