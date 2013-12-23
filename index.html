@@ -84,7 +84,7 @@
 <!-- Placed at the end of the document so the pages load faster -->
 <script src="js/jquery.js"></script>
 <script src="js/bootstrap.min.js"></script>
-<script src="js/flickr.js"></script>
+<script src="js/flickr2.js"></script>
 <style>
     .modal-large {
         width: 98%; /* respsonsive width */
@@ -115,22 +115,17 @@
 </style>
 <script type="text/javascript">
     $(document).ready(function () {
-        var f = new Flickr('5b3ab18aa82feea998391ed5affd3171', {
-            complete: renderGallery,
-            completeInfo: renderPhotoInfo,
-            backlink: true,
-            imageSize: 'medium',
-            media: 'photos'
-        });
         $('.loader').hide();
 
+        var page = 1,
+            searchText = '';
         function renderGallery(gallery) {
             console.log(gallery);
             var html = '';
             $.each(gallery, function (i, e) {
                 html += '<div class="float">' +
-                        '<a href="' + e.original + '" data-href="'+ e.image +'" data-id="' + e.photo_id + '">' +
-                        '<img src="' + e.thumb + '">' +
+                        '<a href="' + e.original_url + '" data-href="'+ e.image_url +'" data-id="' + e.photo_id + '">' +
+                        '<img src="' + e.thumb_url + '">' +
                         '</a>' +
                         '</div>';
             });
@@ -141,65 +136,72 @@
 
         function renderPhotoInfo(info)
         {
-            console.log(info);
             var html = '';
-            var photo = info.photo;
-            html += 'Заголовок: ' + photo.title._content + '<br>' +
-                    'Описание: ' + photo.description._content + '<br>' +
-                    'Автор: ' + photo.owner.realname + ' (' + photo.owner.username + ') <br>' +
-                    'Ссылка: ' + photo.urls.url[0]._content;
 
-            $.each(photo.tags.tag, function(i,e) {
-                html += e._content + '<br>';
+            html += 'Заголовок: ' + info.title + '<br>' +
+                    'Описание: ' + info.description + '<br>' +
+                    'Автор: ' + info.owner_name + '<br>' +
+                    'Ссылка: ' + info.url;
+
+            $.each(info.tags, function(i,e) {
+                html += e._content + ',';
             });
 
             $('#gallery-info').html(html);
         }
 
-        $('#myModal').on('show.bs.modal', function () {
-        });
-
         $('#search-btn').on('click', function(){
-           var searchText = $('#search').val();
+            searchText = $('#search').val();
             $('.loader').show();
-            f.search(searchText);
+
+            f.photosSearch({
+                text: searchText,
+                per_page: 30,
+                page: page,
+                extras: 'original_format,o_dims,owner_name',
+                sort: 'relevance',
+                license: '4,5,6'
+            }, renderGallery);
         });
 
         $('#gallery').delegate('a', 'click', function(e) {
             e.preventDefault();
             $('#gallery-preview').html('<img src="'+ $(this).data('href') +'">');
-            f.photoInfo($(this).data('id'));
+            f.photoInfo({
+                photo_id: $(this).data('id')
+            }, renderPhotoInfo);
             return false;
         });
 
         $('#gallery-next-page').click(function () {
             $('.loader').show();
             $('#gallery').html('');
-            f.nextPage();
+            f.photosSearch({
+                text: searchText,
+                per_page: 30,
+                page: page++,
+                extras: 'original_format,o_dims,owner_name',
+                sort: 'relevance',
+                license: '4,5,6'
+            }, renderGallery);
         });
         $('#gallery-prev-page').click(function () {
             $('.loader').show();
             $('#gallery').html('');
-            f.prevPage();
+            f.photosSearch({
+                text: searchText,
+                per_page: 30,
+                page: page > 1 ? page-- : 1,
+                extras: 'original_format,o_dims,owner_name',
+                sort: 'relevance',
+                license: '4,5,6'
+            }, renderGallery);
         });
-//          var f = new flickr({
-//                  api_key: '5b3ab18aa82feea998391ed5affd3171',
-//                  element: document.getElementById('gallery'),
-//                  thumbnail_size: 't',
-//                  callback: function(e){
-//                      console.log('Flickr Object', e);
-//                      e.append();
-//
-//                      // If you don't want to append the images directly, you can use
-//                      // e.images this hold an array with the img DOM for your easy use ;)
-//                  }
-//              });
-//
-//              f.photosSearch({
-//                  text: 'car',
-//                  per_page: 10,
-//                  extras: 'original_format'
-//              });
+
+        var f = new flickr({
+                  api_key: '5b3ab18aa82feea998391ed5affd3171',
+                  thumbnail_size: 'sq'
+              });
     });
 </script>
 </body>
