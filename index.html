@@ -64,13 +64,14 @@
                       </div>
                       <div class="col-xs-6 col-md-6">
                           <div id="gallery-info"></div>
+                          <div id="gallery-extra-info" class="hidden"></div>
                           <div id="gallery-preview"></div>
                       </div>
                 </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-default" data-dismiss="modal">Закрыть</button>
-                <button type="button" class="btn btn-primary">Выбрать</button>
+                <button type="button" id="gallery-photo-chosen" class="btn btn-primary">Выбрать</button>
             </div>
         </div>
         <!-- /.modal-content -->
@@ -78,13 +79,12 @@
     <!-- /.modal-dialog -->
 </div>
 <!-- /.modal -->
-
 <!-- Bootstrap core JavaScript
 ================================================== -->
 <!-- Placed at the end of the document so the pages load faster -->
 <script src="js/jquery.js"></script>
 <script src="js/bootstrap.min.js"></script>
-<script src="js/flickr2.js"></script>
+<script src="js/flickr.js"></script>
 <style>
     .modal-large {
         width: 98%; /* respsonsive width */
@@ -118,13 +118,17 @@
         $('.loader').hide();
 
         var page = 1,
-            searchText = '';
+            searchText = '',
+            chosenPhoto = {};
+
+
         function renderGallery(gallery) {
-            console.log(gallery);
             var html = '';
             $.each(gallery, function (i, e) {
                 html += '<div class="float">' +
-                        '<a href="' + e.original_url + '" data-href="'+ e.image_url +'" data-id="' + e.photo_id + '">' +
+                        '<a href="' + e.original_url + '" data-href="'+ e.image_url +'" data-id="' + e.photo_id + '" data-title="' + e.title + '"' +
+                        ' data-license="'+ e.license + '" data-owner_name="' + e.owner_name + '" data-owner_contact="' + e.owner_contact + '"' +
+                        ' data-link="' + e.photo_link + '">' +
                         '<img src="' + e.thumb_url + '">' +
                         '</a>' +
                         '</div>';
@@ -138,27 +142,33 @@
         {
             var html = '';
 
-            html += 'Заголовок: ' + info.title + '<br>' +
-                    'Описание: ' + info.description + '<br>' +
-                    'Автор: ' + info.owner_name + '<br>' +
-                    'Ссылка: ' + info.url;
-
+            html += 'Описание: ' + info.description + '<br>';
             $.each(info.tags, function(i,e) {
                 html += e._content + ',';
             });
 
-            $('#gallery-info').html(html);
+            $('#gallery-extra-info').html(html);
+        }
+
+        function renderLicenses(data)
+        {
+            var html = '<ul>';
+            data.forEach(function(e) {
+                html += '<li>' + e.id + ' ' + e.name + ' ' + e.url + '</li>';
+            });
+            html += '</ul>';
+            $('.modal-body').prepend(html);
         }
 
         $('#search-btn').on('click', function(){
             searchText = $('#search').val();
             $('.loader').show();
-
+            page = 1;
             f.photosSearch({
                 text: searchText,
-                per_page: 30,
+                per_page: 60,
                 page: page,
-                extras: 'original_format,o_dims,owner_name',
+                extras: 'original_format,o_dims,owner_name,license',
                 sort: 'relevance',
                 license: '4,5,6'
             }, renderGallery);
@@ -166,7 +176,22 @@
 
         $('#gallery').delegate('a', 'click', function(e) {
             e.preventDefault();
-            $('#gallery-preview').html('<img src="'+ $(this).data('href') +'">');
+            var html = '';
+            var $t = $(this);
+            html += 'Заголовок: ' + decodeURIComponent($t.data('title')) + '<br>' +
+                    'Автор: <a href="' + $t.data('owner_contact') + '">' + decodeURIComponent($t.data('owner_name')) + '</a><br>' +
+                    'Ссылка: <a href="' + $t.data('link') + '"> ссылка на flickr </a>' +
+                    'Лицензия; ' + $t.data('license') + '<br>' +
+                    '<img src="'+ $(this).data('href') +'">';
+
+            $('#gallery-preview').html(html);
+
+            chosenPhoto = {
+                flickr_photo_id: $t.data('id'),
+                flickr_photo_original_url: $t.prop('href'),
+                flickr_photo_license: $t.data('license')
+            };
+
             f.photoInfo({
                 photo_id: $(this).data('id')
             }, renderPhotoInfo);
@@ -176,11 +201,12 @@
         $('#gallery-next-page').click(function () {
             $('.loader').show();
             $('#gallery').html('');
+            page++;
             f.photosSearch({
                 text: searchText,
-                per_page: 30,
-                page: page++,
-                extras: 'original_format,o_dims,owner_name',
+                per_page: 60,
+                page: page,
+                extras: 'original_format,o_dims,owner_name,license',
                 sort: 'relevance',
                 license: '4,5,6'
             }, renderGallery);
@@ -188,20 +214,33 @@
         $('#gallery-prev-page').click(function () {
             $('.loader').show();
             $('#gallery').html('');
+            if(page > 1)
+                page--;
+            else
+                page = 1;
+
             f.photosSearch({
                 text: searchText,
-                per_page: 30,
-                page: page > 1 ? page-- : 1,
-                extras: 'original_format,o_dims,owner_name',
+                per_page: 60,
+                page: page,
+                extras: 'original_format,o_dims,owner_name,license',
                 sort: 'relevance',
                 license: '4,5,6'
             }, renderGallery);
         });
 
+        $('#gallery-photo-chosen').click(function() {
+            console.log(chosenPhoto);
+        });
+
         var f = new flickr({
-                  api_key: '5b3ab18aa82feea998391ed5affd3171',
-                  thumbnail_size: 'sq'
-              });
+            api_key: '5b3ab18aa82feea998391ed5affd3171',
+            thumbnail_size: 'sq',
+            minHeight: 1024,
+            minWidth: 1024
+        });
+
+        f.licenseInfo(renderLicenses);
     });
 </script>
 </body>

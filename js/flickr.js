@@ -49,8 +49,8 @@
 			api_key: 'YOUR API KEY',		// Api key
 			thumbnail_size: 'sq',			// Размер превью
 			image_size: 'm',				// Размер изображния для показа
-			minWidth: 1024,					// Минимальная ширина для оригинального изображения
-			minHeight: 1024					// Минимальная высота оригинального изображения
+			minWidth: false,					// Минимальная ширина для оригинального изображения
+			minHeight: false					// Минимальная высота оригинального изображения
 		};
 
 		var js = {data: j, defaults: defaults};
@@ -105,30 +105,34 @@
 	Flickr.prototype.photos = function (method, options, callback) {
 
 		var gallery = [],
-				photos = [],
-				t = this;
+			photos = [],
+			t = this;
 
 		this.request(method, options, function (data) {
 
 			if (data.photo)
-				photos = t.filterByDim(data.photo);
+				photos = data.photo;
 			else
-				photos = t.filterByDim(data.photos ? data.photos.photo : data.photoset.photo);
+				photos = data.photos ? data.photos.photo : data.photoset.photo;
+
+			if (t.minHeight || t.minWidth)
+				photos = t.filterByDim(photos);
 
 			photos.forEach(function (e) {
 				gallery.push({
 					thumb_url: t.thumbnail_src(e, t.thumbnail_size),
 					image_url: t.thumbnail_src(e, t.image_size),
 					original_url: t.original_src(e),
-					title: e.title,
-					owner_name: e.owner_name ? e.owner_name : '',
+					title: encodeURIComponent(e.title),
+					owner_name: e.ownername ? encodeURIComponent(e.ownername) : '',
+					owner_contact: ['http://www.flickr.com/messages_write.gne?to=', e.owner].join(''),
 					photo_id: e.id,
-					photo_secret: e.secret,
-					photo_link: ['http://flickr.com/photos/', e.owner,e.id].join('/')
+					photo_link: ['http://flickr.com/photos/', e.owner, e.id].join('/'),
+					license: e.license
 				});
 			});
 
-			callback.call( this, gallery );
+			callback.call(this, gallery);
 		});
 	};
 
@@ -137,8 +141,16 @@
 		var t = this;
 		if (photos.length) {
 			photos.forEach(function (e) {
-				if (e.o_width && e.o_width >= t.minHeight
-						&& e.o_height && e.o_height >= t.minHeight)
+				if (t.minWidth && t.minHeight) {
+					if (e.o_width && e.o_width >= t.minWidth
+							&& e.o_height && e.o_height >= t.minHeight)
+						filteredPhotos.push(e);
+				}
+				else if (t.minWidth) {
+					if (e.o_width && e.o_width >= t.minWidth)
+						filteredPhotos.push(e);
+				}
+				else if (e.o_height && e.o_height >= t.minHeight)
 					filteredPhotos.push(e);
 			});
 		}
@@ -152,16 +164,22 @@
 
 	// http://www.flickr.com/services/api/flickr.photos.getInfo.html
 	Flickr.prototype.photoInfo = function (options, callback) {
-		this.request('flickr.photos.getInfo', options, function(data) {
+		this.request('flickr.photos.getInfo', options, function (data) {
 			var photoInfo = {};
 
 			photoInfo.title = data.photo.title._content ? data.photo.title._content : '';
-			photoInfo.description = data.photo.description._content ? data.photo.description._content : '';
+			photoInfo.description = data.photo.description._content ? encodeURIComponent(data.photo.description._content) : '';
 			photoInfo.owner_name = data.photo.owner.realname ? data.photo.owner.realname : data.photo.owner.username;
 			photoInfo.url = data.photo.urls.url[0]._content;
 			photoInfo.tags = data.photo.tags.tag;
 
 			callback.call(this, photoInfo);
+		});
+	};
+
+	Flickr.prototype.licenseInfo = function (callback) {
+		this.request('flickr.photos.licenses.getInfo', {}, function (data) {
+			callback(data.licenses.license);
 		});
 	};
 
